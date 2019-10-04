@@ -11,19 +11,17 @@
  */
 
 
- const BASIC_VERTEXSHADER_SRC = "attribute vec2 a_position;varying vec2 v_position;void main() {gl_Position = vec4(a_position, 0, 1);v_position = a_position;}";
+ const BASIC_VERTEXSHADER_SRC = "attribute vec2 a_position;void main() {gl_Position = vec4(a_position, 0, 1);}";
 
 
 /**
  * 
  * @param {DOM Element} glcanvas Handle to HTML where the glcanvas resides
  * @param {SceneCanvas} glslcanvas Pointer to glsl canvas
- * @param {string} shadersrelpath Path to the folder that contains the shaders,
- *                                relative to where the constructor is being called
  */
-function RayCanvas(glcanvas, glslcanvas, shadersrelpath) {
+function RayCanvas(glcanvas, glslcanvas) {
     // Initialize a WebGL handle and keyboard/mouse callbacks
-    BaseCanvas(glcanvas, shadersrelpath); 
+    BaseCanvas(glcanvas); 
     // Make sure this canvas and the glsl canvas both control the same camera
     glcanvas.camera = glslcanvas.camera; 
     // Store a pointer to the glsl canvas for looking up scene information
@@ -50,9 +48,10 @@ function RayCanvas(glcanvas, glslcanvas, shadersrelpath) {
      */
     glcanvas.setupBasicShaders = function() {
         let gl = glcanvas.gl;
+        glcanvas.fragmentSrcPre = BlockLoader.loadTxt("raytracer.frag");
 
         let vertexShader = getShader(gl, BASIC_VERTEXSHADER_SRC, "vertex");
-        let fragmentShader = getShader(gl, BlockLoader.loadTxt("raytracer.frag"), "fragment");
+        let fragmentShader = getShader(gl, glcanvas.fragmentSrcPre, "fragment");
 
         glcanvas.shader = gl.createProgram();
         let shader = glcanvas.shader;
@@ -97,7 +96,6 @@ function RayCanvas(glcanvas, glslcanvas, shadersrelpath) {
         gl.vertexAttribPointer(shader.positionLocation, 2, gl.FLOAT, false, 0, 0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, shader.indexBuffer);
         gl.drawElements(gl.TRIANGLES, shader.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-
     }
 
     glcanvas.setupBasicShaders();

@@ -58,10 +58,6 @@ uniform vec3 right;
 uniform vec3 up;
 
 
-// The 2D position of the pixel in this fragment, interpolated via
-// barycentric coordinates from positions of triangle vertices
-varying vec2 v_position;
-
 void main() {
     vec3 color = vec3(1.0, 0.0, 0.0);
     gl_FragColor = vec4(color, 1.0);
