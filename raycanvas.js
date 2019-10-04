@@ -27,7 +27,7 @@ function RayCanvas(glcanvas, glslcanvas, shadersrelpath) {
     // Make sure this canvas and the glsl canvas both control the same camera
     glcanvas.camera = glslcanvas.camera; 
     // Store a pointer to the glsl canvas for looking up scene information
-    glcanvas.glslcanvas = glslcanvas
+    glcanvas.glslcanvas = glslcanvas;
 
     /**
      * A function that sends over information about the camera,
@@ -54,7 +54,8 @@ function RayCanvas(glcanvas, glslcanvas, shadersrelpath) {
         let vertexShader = getShader(gl, BASIC_VERTEXSHADER_SRC, "vertex");
         let fragmentShader = getShader(gl, BlockLoader.loadTxt("raytracer.frag"), "fragment");
 
-        let shader = gl.createProgram();
+        glcanvas.shader = gl.createProgram();
+        let shader = glcanvas.shader;
         gl.attachShader(shader, vertexShader);
         gl.attachShader(shader, fragmentShader);
         gl.linkProgram(shader);
@@ -63,43 +64,39 @@ function RayCanvas(glcanvas, glslcanvas, shadersrelpath) {
         }
         shader.name = "raytracer";
 
-        const positionLocation = gl.getAttribLocation(shader, "a_position");
-        gl.enableVertexAttribArray(positionLocation);
-        const positionBuffer = gl.createBuffer();
+        shader.positionLocation = gl.getAttribLocation(shader, "a_position");
+        gl.enableVertexAttribArray(shader.positionLocation);
+    
+        // Setup some dummy positions for the vertex buffer
+        shader.positionBuffer = gl.createBuffer();
         const positions = new Float32Array([-1.0,  1.0,
                                             1.0,  1.0,
                                             -1.0, -1.0,
                                             1.0, -1.0]);
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, shader.positionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shader.positionLocation, 2, gl.FLOAT, false, 0, 0);
+    
         // Setup 2 triangles connecting the vertices so that there
         // are solid shaded regions
-        const indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        shader.indexBuffer = gl.createBuffer();
+        shader.indexBuffer.itemSize = 1;
+        shader.indexBuffer.numItems = 6;
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, shader.indexBuffer);
         const tris = new Uint16Array([0, 1, 2, 1, 2, 3]);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, tris, gl.STATIC_DRAW);
-        indexBuffer.itemSize = 1;
-        indexBuffer.numItems = 6;
-        
-        glcanvas.positionBuffer = positionBuffer;
-        glcanvas.indexBuffer = indexBuffer;
-        glcanvas.shader = shader;
-        glcanvas.positionLocation = positionLocation;
     }
 
     glcanvas.repaint = function() {
+        let shader = glcanvas.shader;
         let gl = glcanvas.gl;
+        gl.useProgram(shader);
 
-        gl.useProgram(glcanvas.shader);
-        glcanvas.updateUniforms();
-        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        
-        gl.bindBuffer(gl.ARRAY_BUFFER, glcanvas.positionBuffer);
-        gl.vertexAttribPointer(glcanvas.shader.positionLocation, 2, gl.FLOAT, false, 0, 0);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, glcanvas.indexBuffer);
-        gl.drawElements(gl.TRIANGLES, glcanvas.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+        // Bind vertex and index buffers to draw two triangles
+        gl.bindBuffer(gl.ARRAY_BUFFER, shader.positionBuffer);
+        gl.vertexAttribPointer(shader.positionLocation, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, shader.indexBuffer);
+        gl.drawElements(gl.TRIANGLES, shader.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 
     }
 
