@@ -32,10 +32,10 @@
     <button type="button" onclick="viewGLSL()" id="glslbutton" class="active">Object-First GLSL</button>
     <button type="button" onclick="viewRay()" id="raybutton" class="">Ray Tracer</button>
 </div>
-<canvas id="GLSLCanvas" width="800" height="600" tabindex="0">
+<canvas id="GLSLCanvas" width="800" height="600" tabindex="1">
     Canvas tag not supported
 </canvas>
-<canvas id="RayCanvas" width="800" height="600" tabindex="0">
+<canvas id="RayCanvas" width="800" height="600" tabindex="1">
     Canvas tag not supported
 </canvas>
 
@@ -106,16 +106,20 @@
         activeCanvas = glslcanvas;
         glslbutton.className = "active";
         glslcanvas.style.display = "block";
+        glslcanvas.active = true;
         raybutton.className = "";
         raycanvas.style.display = "none";
+        raycanvas.active = false;
         requestAnimFrame(activeCanvas.repaint);
     }
     function viewRay() {
         activeCanvas = raycanvas;
         glslbutton.className = "";
         glslcanvas.style.display = "none";
+        glslcanvas.active = false;
         raybutton.className = "active";
         raycanvas.style.display = "block";
+        raycanvas.active = true;
         requestAnimFrame(activeCanvas.repaint);
     }
 
