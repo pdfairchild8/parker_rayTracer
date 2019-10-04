@@ -18,52 +18,57 @@
 <script src="ggslac/utils/blockloader.js"></script>
 <script src="ggslac/viewers/basecanvas.js"></script>
 <script src="ggslac/viewers/scenecanvas.js"></script>
+<script src="raycanvas.js"></script>
 
-<link rel="stylesheet" type="text/css" href="ggslac/viewers/style.css">
+<link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
 
-<table><tr><td>
-<canvas id="GLCanvas1" style="border: none;" width="800" height="600"></canvas>
-
-</td>
-<td>
-
 <h3>Scene</h3>
+<input type = "file" id = "sceneInput">
+
+<div class="tabmenu">
+    <button type="button" onclick="viewGLSL()" id="glslbutton" class="active">Object-First GLSL</button>
+    <button type="button" onclick="viewRay()" id="raybutton" class="">Ray Tracer</button>
+</div>
+<canvas id="GLSLCanvas" width="800" height="600" tabindex="0">
+    Canvas tag not supported
+</canvas>
+<canvas id="RayCanvas" width="800" height="600" tabindex="0">
+    Canvas tag not supported
+</canvas>
+
+
+
 <table>
-<tr><td>Scene File</td><td><input type = "file" id = "sceneInput"></td></tr>
-</table>
-
-
-</td></tr>
-<tr>
-    <td>
-        <table cellpadding>
-            <tr>
-                <td>
-                    <h3>Controls</h3>
-                    <ul>
-                        <li><b>Mouse</b>: Click and drag to look around</li>
-                        <li><b>W:</b> Forward</li>
-                        <li><b>S:</b> Backwards</li>
-                        <li><b>A:</b> Left</li>
-                        <li><b>D:</b> Right</li>
-                        <li><b>E:</b> Up</li>
-                        <li><b>C:</b> Down</li>
-                    </ul>
-                </td>
-            </tr>
-        </table>
-    </td>
-</tr>
+    <tr>
+        <td>
+            <h3>Controls</h3>
+            <ul>
+                <li><b>Mouse</b>: Click and drag to look around</li>
+                <li><b>W:</b> Forward</li>
+                <li><b>S:</b> Backwards</li>
+                <li><b>A:</b> Left</li>
+                <li><b>D:</b> Right</li>
+                <li><b>E:</b> Up</li>
+                <li><b>C:</b> Down</li>
+            </ul>
+        </td>
+    </tr>
 </table>
 
 
 <script>
-    let glcanvas = document.getElementById("GLCanvas1");
-    glcanvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); //Need this to disable the menu that pops up on right clicking
-    SceneCanvas(glcanvas, "ggslac/shaders/", "ggslac/meshes/");
+    let glslcanvas = document.getElementById("GLSLCanvas");
+    glslcanvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); //Need this to disable the menu that pops up on right clicking
+    SceneCanvas(glslcanvas, "ggslac/shaders/", "ggslac/meshes/");
+
+    let raycanvas = document.getElementById("RayCanvas");
+    raycanvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); //Need this to disable the menu that pops up on right clicking
+    RayCanvas(raycanvas, glslcanvas, "ggslac/shaders/");
+
+    let activeCanvas = glslcanvas;
 
     let sceneInput = document.getElementById('sceneInput');
     sceneInput.addEventListener('change', function(e) {
@@ -77,19 +82,45 @@
                 alert("Error parsing scene file.  Check your JSON syntax");
                 throw(error);
             }
-            glcanvas.setupScene(scene, glcanvas.clientWidth, glcanvas.clientHeight);
-            glcanvas.updateMeshDrawings();
+            // Setup glsl scene
+            glslcanvas.setupScene(scene, glslcanvas.clientWidth, glslcanvas.clientHeight);
+            glslcanvas.updateMeshDrawings();
+            
+            // Setup scene in ray tracer
+            // TODO: Finish this
+            requestAnimFrame(activeCanvas.repaint);
         }
         reader.readAsText(sceneInput.files[0]);
     });
 
 
     // Load the sample scene as a default
-    scene = BlockLoader.loadJSON("../scenes/sample-scene.json");
-    glcanvas.setupScene(scene, glcanvas.clientWidth, glcanvas.clientHeight);
-    glcanvas.drawEdges = false;
-    glcanvas.updateMeshDrawings();
-    requestAnimFrame(glcanvas.repaint);
+    scene = BlockLoader.loadJSON("sample-scene.json");
+    glslcanvas.setupScene(scene, glslcanvas.clientWidth, glslcanvas.clientHeight);
+    glslcanvas.drawEdges = false;
+    glslcanvas.updateMeshDrawings();
+
+    glslbutton = document.getElementById("glslbutton");
+    raybutton = document.getElementById("raybutton");
+    function viewGLSL() {
+        activeCanvas = glslcanvas;
+        glslbutton.className = "active";
+        glslcanvas.style.display = "block";
+        raybutton.className = "";
+        raycanvas.style.display = "none";
+        requestAnimFrame(activeCanvas.repaint);
+    }
+    function viewRay() {
+        activeCanvas = raycanvas;
+        glslbutton.className = "";
+        glslcanvas.style.display = "none";
+        raybutton.className = "active";
+        raycanvas.style.display = "block";
+        requestAnimFrame(activeCanvas.repaint);
+    }
+
+    viewGLSL();
+    
     
     
 </script>
