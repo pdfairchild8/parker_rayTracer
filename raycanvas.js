@@ -60,14 +60,20 @@ function RayCanvas(glcanvas, glslcanvas) {
                 console.log("Warning: No materials declared in scene");
             }
             else {
-                let numMaterials = Math.min(MAX_MATERIALS, scene.materials.length);
+                scene.materialsArr = [];
+                for (let name in scene.materials) {
+                    if (Object.prototype.hasOwnProperty.call(scene.materials, name)) {
+                        scene.materialsArr.push(scene.materials[name]);
+                    }
+                }
+                let numMaterials = Math.min(MAX_MATERIALS, scene.materialsArr.length);
                 gl.uniform1i(shader.u_numMaterials, numMaterials);
                 for (let i = 0; i < numMaterials; i++) {
-                    gl.uniform3fv(shader.u_materials[i].kd, scene.materials[i].kd);
-                    gl.uniform3fv(shader.u_materials[i].ks, scene.materials[i].ks);
-                    gl.uniform3fv(shader.u_materials[i].ka, scene.materials[i].ka);
-                    gl.uniform1f(shader.u_materials[i].shininess, scene.materials[i].shininess);
-                    gl.uniform1f(shader.u_materials[i].refraction, scene.materials[i].refraction);
+                    gl.uniform3fv(shader.u_materials[i].kd, scene.materialsArr[i].kd);
+                    gl.uniform3fv(shader.u_materials[i].ks, scene.materialsArr[i].ks);
+                    gl.uniform3fv(shader.u_materials[i].ka, scene.materialsArr[i].ka);
+                    gl.uniform1f(shader.u_materials[i].shininess, scene.materialsArr[i].shininess);
+                    gl.uniform1f(shader.u_materials[i].refraction, scene.materialsArr[i].refraction);
                 }
             }
         }
@@ -103,10 +109,11 @@ function RayCanvas(glcanvas, glslcanvas) {
     }
 
     /**
-     * Setup the vertex shader and four corners of the image,
-     * which never change
+     * Setup the vertex shader and four corners of the image
+     * once at the beginning of initializing this object, 
+     * since they never change
      */
-    glcanvas.setupBuffers = function() {
+    glcanvas.setupInitialBuffers = function() {
         let gl = glcanvas.gl;
         glcanvas.fragmentSrcPre = BlockLoader.loadTxt("raytracer.frag");
 
@@ -131,12 +138,15 @@ function RayCanvas(glcanvas, glslcanvas) {
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, tris, gl.STATIC_DRAW);
     }
 
-    glcanvas.setupShaders = function() {
+    glcanvas.setupShaders = function(fragmentSrcPost) {
         let gl = glcanvas.gl;
         if (!(glcanvas.fragmentShader === null)) {
             gl.deleteShader(glcanvas.fragmentShader);
         }
-        glcanvas.fragmentShader = getShader(gl, glcanvas.fragmentSrcPre, "fragment");
+        if (fragmentSrcPost === undefined) {
+            fragmentSrcPost = "";
+        }
+        glcanvas.fragmentShader = getShader(gl, glcanvas.fragmentSrcPre + fragmentSrcPost, "fragment");
 
         glcanvas.shader = gl.createProgram();
         let shader = glcanvas.shader;
@@ -236,6 +246,6 @@ function RayCanvas(glcanvas, glslcanvas) {
     glcanvas.removeEventListener('touchmove', glcanvas.clickerDragged);
     glcanvas.addEventListener('touchmove', glcanvas.clickerDraggedSync);
 
-    glcanvas.setupBuffers();
+    glcanvas.setupInitialBuffers();
     glcanvas.setupShaders();
 }
