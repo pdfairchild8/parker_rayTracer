@@ -44,8 +44,8 @@ struct Intersection {
 ********************************************/
 // Uniforms set from Javascript that are constant
 // over all fragments
-uniform float height;
-uniform float width;
+uniform float canvas_height;
+uniform float canvas_width;
 uniform int numObjects;
 uniform int numLights;
 uniform Light lights[MAX_LIGHTS];
@@ -59,6 +59,7 @@ uniform vec3 up;
 
 
 void main() {
-    vec3 color = vec3(1.0, 0.0, 0.0);
-    gl_FragColor = vec4(color, 1.0);
+    gl_FragColor = vec4(gl_FragCoord.x / canvas_width, 
+                        gl_FragCoord.y / canvas_height,
+                        0, 1);
 }
