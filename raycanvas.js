@@ -11,8 +11,9 @@
  */
 
 
- const BASIC_VERTEXSHADER_SRC = "attribute vec2 a_position;void main() {gl_Position = vec4(a_position, 0, 1);}";
-
+const BASIC_VERTEXSHADER_SRC = "attribute vec2 a_position;void main() {gl_Position = vec4(a_position, 0, 1);}";
+const MAX_LIGHTS = 10
+const MAX_MATERIALS = 10
 
 /**
  * 
@@ -24,6 +25,8 @@ function RayCanvas(glcanvas, glslcanvas) {
     BaseCanvas(glcanvas); 
     // Store a pointer to the glsl canvas for looking up scene information
     glcanvas.glslcanvas = glslcanvas;
+    glcanvas.vertexShader = null;
+    glcanvas.fragmentShader = null;
 
     /**
      * A function that sends over information about the camera,
@@ -34,13 +37,69 @@ function RayCanvas(glcanvas, glslcanvas) {
         let gl = glcanvas.gl;
         gl.uniform1f(shader.u_canvas_width, glcanvas.clientWidth);
         gl.uniform1f(shader.u_canvas_height, glcanvas.clientHeight);
+        let camera = glcanvas.glslcanvas.camera;
+        if (!(camera === null)) {
+            gl.uniform3fv(shader.u_eye, camera.pos);
+            gl.uniform3fv(shader.u_right, camera.right);
+            gl.uniform3fv(shader.u_up, camera.up);
+        }
+        let scene = glcanvas.glslcanvas.scene;
+        if (!(scene === null)) {
+            if (scene.lights === null) {
+                console.log("Warning: No lights declared in scene");
+            }
+            else {
+                let numLights = Math.min(MAX_LIGHTS, scene.lights.length);
+                gl.uniform1i(shader.u_numLights, numLights);
+                for (let i = 0; i < numLights; i++) {
+                    gl.uniform3fv(shader.u_lights[i].pos, scene.lights[i].camera.pos);
+                    gl.uniform3fv(shader.u_lights[i].color, scene.lights[i].color);
+                }                
+            }
+            if (scene.materials === null) {
+                console.log("Warning: No materials declared in scene");
+            }
+            else {
+                let numMaterials = Math.min(MAX_MATERIALS, scene.materials.length);
+                gl.uniform1i(shader.u_numMaterials, numMaterials);
+                for (let i = 0; i < numMaterials; i++) {
+                    gl.uniform3fv(shader.u_materials[i].kd, scene.materials[i].kd);
+                    gl.uniform3fv(shader.u_materials[i].ks, scene.materials[i].ks);
+                    gl.uniform3fv(shader.u_materials[i].ka, scene.materials[i].ka);
+                    gl.uniform1f(shader.u_materials[i].shininess, scene.materials[i].shininess);
+                    gl.uniform1f(shader.u_materials[i].refraction, scene.materials[i].refraction);
+                }
+            }
+        }
     }
 
     /**
      * Setup and compile a new fragment shader based on objects in the scene
      */
     glcanvas.updateScene = function() {
-        
+        let c = glcanvas.glslcanvas;
+
+        // Step 1: Setup handlers for menus that will repaint
+        // when light, camera, and material properties are changed, 
+        // assuming this canvas is active
+        [c.lightMenus, c.cameraMenus, c.materialMenus].forEach(function(menu) {
+            if (!(menu === undefined)) {
+                menu.forEach(function(m) {
+                    m.__controllers.forEach(function(controller) {
+                        // Still call the handler that was there before
+                        // but add on a handler that repaints this canvas
+                        // if it is active
+                        let otherHandler = controller.__onChange;
+                        controller.onChange(function(v) {
+                            otherHandler(v);
+                            if (glcanvas.active) {
+                                requestAnimFrame(glcanvas.repaint);
+                            }
+                        });
+                    });
+                });
+            }
+        });
     }
 
     /**
@@ -74,12 +133,15 @@ function RayCanvas(glcanvas, glslcanvas) {
 
     glcanvas.setupShaders = function() {
         let gl = glcanvas.gl;
-        let fragmentShader = getShader(gl, glcanvas.fragmentSrcPre, "fragment");
+        if (!(glcanvas.fragmentShader === null)) {
+            gl.deleteShader(glcanvas.fragmentShader);
+        }
+        glcanvas.fragmentShader = getShader(gl, glcanvas.fragmentSrcPre, "fragment");
 
         glcanvas.shader = gl.createProgram();
         let shader = glcanvas.shader;
         gl.attachShader(shader, glcanvas.vertexShader);
-        gl.attachShader(shader, fragmentShader);
+        gl.attachShader(shader, glcanvas.fragmentShader);
         gl.linkProgram(shader);
         if (!gl.getProgramParameter(shader, gl.LINK_STATUS)) {
             alert("Could not initialize raytracing shader");
@@ -97,6 +159,31 @@ function RayCanvas(glcanvas, glslcanvas) {
         shader.u_numObjects = gl.getUniformLocation(shader, "numObjects");
         shader.u_numLights = gl.getUniformLocation(shader, "numLights");
         shader.u_numMaterials = gl.getUniformLocation(shader, "numMaterials");
+        shader.u_eye = gl.getUniformLocation(shader, "eye");
+        shader.u_right = gl.getUniformLocation(shader, "right");
+        shader.u_up = gl.getUniformLocation(shader, "up");
+        shader.u_numLights = gl.getUniformLocation(shader, "numLights");
+        shader.u_numMaterials = gl.getUniformLocation(shader, "numMaterials");
+        shader.u_lights = [];
+        for (let i = 0; i < MAX_LIGHTS; i++) {
+            let light = {
+                pos: gl.getUniformLocation(shader, "lights["+i+"].pos"),
+                color: gl.getUniformLocation(shader, "lights["+i+"].color"),
+                falloff: gl.getUniformLocation(shader, "lights["+i+"].falloff")
+            };
+            shader.u_lights.push(light);
+        }
+        shader.u_materials = [];
+        for (let i = 0; i < MAX_LIGHTS; i++) {
+            let material = {
+                kd: gl.getUniformLocation(shader, "materials["+i+"].kd"),
+                ks: gl.getUniformLocation(shader, "materials["+i+"].ks"),
+                ka: gl.getUniformLocation(shader, "materials["+i+"].ka"),
+                shininess: gl.getUniformLocation(shader, "materials["+i+"].shininess"),
+                refraction: gl.getUniformLocation(shader, "materials["+i+"].refraction")
+            }
+            shader.u_materials.push(material);
+        }
     }
 
     glcanvas.repaint = function() {
@@ -134,13 +221,14 @@ function RayCanvas(glcanvas, glslcanvas) {
         this.lastX = mousePos.X;
         this.lastY = mousePos.Y;
         let camera = glcanvas.glslcanvas.camera;
-        if (camera === null) {
-            return;
+        if (!(camera === null)) {
+            if (glcanvas.dragging) {
+                //Rotate camera by mouse dragging
+                camera.rotateLeftRight(-dX);
+                camera.rotateUpDown(-dY);
+                requestAnimFrame(glcanvas.repaint);
+            }
         }
-        //Rotate camera by mouse dragging
-        camera.rotateLeftRight(-dX);
-        camera.rotateUpDown(-dY);
-        requestAnimFrame(glcanvas.repaint);
         return false;
     }
     glcanvas.removeEventListener('mousemove', glcanvas.clickerDragged);

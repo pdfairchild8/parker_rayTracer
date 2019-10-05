@@ -16,10 +16,9 @@ struct Material {
   vec3 kd;
   vec3 ks;
   vec3 ka;
+  vec3 kt;
   float shininess;
-
-  float reflectivity;
-  float refractionRatio;
+  float refraction;
 };
 
 struct Light {
@@ -59,7 +58,7 @@ uniform vec3 up;
 
 
 void main() {
-    gl_FragColor = vec4(gl_FragCoord.x / canvas_width, 
-                        gl_FragCoord.y / canvas_height,
-                        0, 1);
+    vec3 c = vec3(gl_FragCoord.x / canvas_width, gl_FragCoord.y / canvas_height, 0);
+    c *= lights[0].color;
+    gl_FragColor = vec4(c, 1.0);
 }

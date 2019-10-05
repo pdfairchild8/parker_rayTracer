@@ -87,7 +87,7 @@
             glslcanvas.updateMeshDrawings();
             
             // Setup scene in ray tracer
-            // TODO: Finish this
+            raycanvas.updateScene();
             requestAnimFrame(activeCanvas.repaint);
         }
         reader.readAsText(sceneInput.files[0]);
@@ -99,6 +99,7 @@
     glslcanvas.setupScene(scene, glslcanvas.clientWidth, glslcanvas.clientHeight);
     glslcanvas.drawEdges = false;
     glslcanvas.updateMeshDrawings();
+    raycanvas.updateScene();
 
     glslbutton = document.getElementById("glslbutton");
     raybutton = document.getElementById("raybutton");
