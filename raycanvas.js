@@ -15,6 +15,31 @@ const BASIC_VERTEXSHADER_SRC = "attribute vec2 a_position;void main() {gl_Positi
 const MAX_LIGHTS = 10
 const MAX_MATERIALS = 10
 
+function vec3ToGLSLStr(v, k) {
+    if (k === undefined) {
+        k = 5;
+    }
+    return "vec3(" + v[0].toFixed(k) + "," + v[1].toFixed(k) + "," + v[2].toFixed(k) + ")";
+}
+
+function matToGLSLStr(m, k) {
+    if (k === undefined) {
+        k = 5;
+    }
+    let s = "mat4(";
+    if (m.length == 9) {
+        s = "mat3(";
+    }
+    for (let i = 0; i < m.length; i++) {
+        s += m[i].toFixed(k);
+        if (i < m.length-1) {
+            s += ",";
+        }
+    }
+    s += ")";
+    return s;
+}
+
 /**
  * 
  * @param {DOM Element} glcanvas Handle to HTML where the glcanvas resides
@@ -56,19 +81,13 @@ function RayCanvas(glcanvas, glslcanvas) {
                     gl.uniform3fv(shader.u_lights[i].color, scene.lights[i].color);
                 }                
             }
-            if (scene.materials === null) {
+            if (scene.materialsArr === null) {
                 console.log("Warning: No materials declared in scene");
             }
             else {
-                scene.materialsArr = [];
-                for (let name in scene.materials) {
-                    if (Object.prototype.hasOwnProperty.call(scene.materials, name)) {
-                        scene.materialsArr.push(scene.materials[name]);
-                    }
-                }
                 let numMaterials = Math.min(MAX_MATERIALS, scene.materialsArr.length);
                 gl.uniform1i(shader.u_numMaterials, numMaterials);
-                for (let i = 0; i < numMaterials; i++) {
+                for (i = 0; i < numMaterials; i++) {
                     gl.uniform3fv(shader.u_materials[i].kd, scene.materialsArr[i].kd);
                     gl.uniform3fv(shader.u_materials[i].ks, scene.materialsArr[i].ks);
                     gl.uniform3fv(shader.u_materials[i].ka, scene.materialsArr[i].ka);
@@ -77,35 +96,6 @@ function RayCanvas(glcanvas, glslcanvas) {
                 }
             }
         }
-    }
-
-    /**
-     * Setup and compile a new fragment shader based on objects in the scene
-     */
-    glcanvas.updateScene = function() {
-        let c = glcanvas.glslcanvas;
-
-        // Step 1: Setup handlers for menus that will repaint
-        // when light, camera, and material properties are changed, 
-        // assuming this canvas is active
-        [c.lightMenus, c.cameraMenus, c.materialMenus].forEach(function(menu) {
-            if (!(menu === undefined)) {
-                menu.forEach(function(m) {
-                    m.__controllers.forEach(function(controller) {
-                        // Still call the handler that was there before
-                        // but add on a handler that repaints this canvas
-                        // if it is active
-                        let otherHandler = controller.__onChange;
-                        controller.onChange(function(v) {
-                            otherHandler(v);
-                            if (glcanvas.active) {
-                                requestAnimFrame(glcanvas.repaint);
-                            }
-                        });
-                    });
-                });
-            }
-        });
     }
 
     /**
@@ -138,6 +128,10 @@ function RayCanvas(glcanvas, glslcanvas) {
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, tris, gl.STATIC_DRAW);
     }
 
+    /**
+     * A function to compile together the vertex shader and the fragment shader
+     * setup from the scene, and to get pointers to all of the uniforms
+     */
     glcanvas.setupShaders = function(fragmentSrcPost) {
         let gl = glcanvas.gl;
         if (!(glcanvas.fragmentShader === null)) {
@@ -146,6 +140,7 @@ function RayCanvas(glcanvas, glslcanvas) {
         if (fragmentSrcPost === undefined) {
             fragmentSrcPost = "";
         }
+        let tic = performance.now();
         glcanvas.fragmentShader = getShader(gl, glcanvas.fragmentSrcPre + fragmentSrcPost, "fragment");
 
         glcanvas.shader = gl.createProgram();
@@ -157,6 +152,7 @@ function RayCanvas(glcanvas, glslcanvas) {
             alert("Could not initialize raytracing shader");
         }
         shader.name = "raytracer";
+        console.log("Elapsed Time Ray Shader Compilation: " + (performance.now()-tic) + " milliseconds");
 
         shader.positionLocation = gl.getAttribLocation(shader, "a_position");
         gl.enableVertexAttribArray(shader.positionLocation);
@@ -184,7 +180,7 @@ function RayCanvas(glcanvas, glslcanvas) {
             shader.u_lights.push(light);
         }
         shader.u_materials = [];
-        for (let i = 0; i < MAX_LIGHTS; i++) {
+        for (let i = 0; i < MAX_MATERIALS; i++) {
             let material = {
                 kd: gl.getUniformLocation(shader, "materials["+i+"].kd"),
                 ks: gl.getUniformLocation(shader, "materials["+i+"].ks"),
@@ -194,6 +190,191 @@ function RayCanvas(glcanvas, glslcanvas) {
             }
             shader.u_materials.push(material);
         }
+    }
+
+    /**
+     * A recursive function for adding shapes to the scene by adding
+     * code to the fragment shader
+     * 
+     * @param {object} node The current node in the scene
+     * @param {glMatrix.mat4} transform The accumulated transform up to this point
+     * @param {int} k The number of floating point digits to output to the shader
+     *                for each floating point number
+     */
+    glcanvas.updateSceneRec = function(node, transform, k) {
+        if (k === undefined) {
+            k = 5;
+        }
+        let nextTransform = glMatrix.mat4.create();
+        glMatrix.mat4.mul(nextTransform, transform, node.transform);
+        let N = glMatrix.mat3.create();
+        glMatrix.mat3.normalFromMat4(N, nextTransform);
+        let retStr = "";
+        node.shapes.forEach(function(shape) {
+            if (!('material' in shape)) {
+                console.log("Error: Material not specified for node");
+            }
+            else {
+                let mIdx = shape.material.i;
+                if (shape.type == "box") {
+                    retStr += "\ttCurr = rayIntersectBox("
+                    let width = 1.0;
+                    let height = 1.0;
+                    let length = 1.0;
+                    let center = glMatrix.vec3.create();
+                    if ('width' in shape) {
+                        width = shape.width;
+                    }
+                    if ('height' in shape) {
+                        height = shape.height;
+                    }
+                    if ('length' in shape) {
+                        length = shape.length;
+                    }
+                    if ('center' in shape) {
+                        center = shape.center;
+                    }
+                    retStr += "ray, " + width.toFixed(k) + ", " + 
+                              height.toFixed(k) + ", " + length.toFixed(k);
+                    retStr += ", " + vec3ToGLSLStr(center) + ", " + mIdx;
+                    retStr += ", " + matToGLSLStr(nextTransform)
+                    retStr += ", " + matToGLSLStr(N)
+                    retStr += ", intersectCurr);\n";
+                }
+                else if (shape.type == "sphere") {
+                    retStr += "\ttCurr = rayIntersectSphere("
+                    let radius = 1.0;
+                    let center = glMatrix.vec3.create();
+                    if ('radius' in shape) {
+                        radius = shape.radius;
+                    }
+                    if ('center' in shape) {
+                        center = shape.center;
+                    }
+                    retStr += "ray, " +  vec3ToGLSLStr(center)
+                    retStr += ", " + radius.toFixed(k) + ", " + mIdx;
+                    retStr += ", " + matToGLSLStr(nextTransform)
+                    retStr += ", " + matToGLSLStr(N)
+                    retStr += ", intersectCurr);\n";
+                }
+                else if (shape.type == "cylinder") {
+                    retStr += "\ttCurr = rayIntersectCylinder("
+                    let radius = 1.0;
+                    let height = 1.0;
+                    let center = glMatrix.vec3.create();
+                    if ('radius' in shape) {
+                        radius = shape.radius;
+                    }
+                    if ('height' in shape) {
+                        height = shape.height;
+                    }
+                    if ('center' in shape) {
+                        center = shape.center;
+                    }
+                    retStr += "ray, " +  vec3ToGLSLStr(center)
+                    retStr += ", " + radius.toFixed(k) 
+                    retStr += ", " + height.toFixed(k) + ", " + mIdx;
+                    retStr += ", " + matToGLSLStr(nextTransform)
+                    retStr += ", " + matToGLSLStr(N)
+                    retStr += ", intersectCurr);\n";
+                }
+                else if (shape.type == "cone") {
+                    retStr += "\ttCurr = rayIntersectCone("
+                    let radius = 1.0;
+                    let height = 1.0;
+                    let center = glMatrix.vec3.create();
+                    if ('radius' in shape) {
+                        radius = shape.radius;
+                    }
+                    if ('height' in shape) {
+                        height = shape.height;
+                    }
+                    if ('center' in shape) {
+                        center = shape.center;
+                    }
+                    retStr += "ray, " +  vec3ToGLSLStr(center)
+                    retStr += ", " + radius.toFixed(k) 
+                    retStr += ", " + height.toFixed(k) + ", " + mIdx;
+                    retStr += ", " + matToGLSLStr(nextTransform)
+                    retStr += ", " + matToGLSLStr(N)
+                    retStr += ", intersectCurr);\n";
+                }
+                retStr += "\tif(tCurr < tMin) {\n" +
+                          "\t\ttMin = tCurr;\n"+
+                          "\t\tintersectMin = intersectCurr;\n" +
+                          "\t}\n";
+            }
+        });
+        if ('children' in node) {
+            for (let i = 0; i < node.children.length; i++) {
+                retStr += glcanvas.updateSceneRec(node.children[i], nextTransform) + "\n";
+            }
+        }
+        return retStr;
+    }
+
+    /**
+     * Setup and compile a new fragment shader based on objects in the scene
+     */
+    glcanvas.updateScene = function() {
+        let c = glcanvas.glslcanvas;
+
+        let scene = c.scene;
+        if (scene === null) {
+            console.log("Warning: Trying to add shapes to ray tracing fragment shader, but scene is null");
+            return;
+        }
+
+        // Pull the materials out into an array, and store an index into
+        // that array for each material
+        scene.materialsArr = [];
+        let i = 0;
+        for (let name in scene.materials) {
+            if (Object.prototype.hasOwnProperty.call(scene.materials, name)) {
+                scene.materialsArr.push(scene.materials[name]);
+                scene.materials[name].i = i;
+                i += 1;
+            }
+        }
+
+        // Step 1: Setup handlers for menus that will repaint
+        // when light, camera, and material properties are changed, 
+        // assuming this canvas is active
+        [c.lightMenus, c.cameraMenus, c.materialMenus].forEach(function(menu) {
+            if (!(menu === undefined)) {
+                menu.forEach(function(m) {
+                    m.__controllers.forEach(function(controller) {
+                        // Still call the handler that was there before
+                        // but add on a handler that repaints this canvas
+                        // if it is active
+                        let otherHandler = controller.__onChange;
+                        controller.onChange(function(v) {
+                            otherHandler(v);
+                            if (glcanvas.active) {
+                                requestAnimFrame(glcanvas.repaint);
+                            }
+                        });
+                    });
+                });
+            }
+        });
+
+        // Step 2: Setup fragment shader to hardcode in scene
+        let fragmentSrcPost = "\n\n" +
+          "float rayIntersectScene(Ray ray, out Intersection intersect) {\n" +
+          "\tIntersection intersectMin;\n" +
+          "\tfloat tMin = INF;\n" +
+          "\tIntersection intersectCurr;\n" + 
+          "\tfloat tCurr = INF;\n";
+        
+        let m = glMatrix.mat4.create();
+        scene.children.forEach(function(node) {
+            fragmentSrcPost += glcanvas.updateSceneRec(node, m) + "\n";
+        });
+
+        fragmentSrcPost += "\treturn tMin;\n}";
+        console.log(fragmentSrcPost);
+        glcanvas.setupShaders(fragmentSrcPost);
     }
 
     glcanvas.repaint = function() {
