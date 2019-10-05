@@ -22,8 +22,6 @@
 function RayCanvas(glcanvas, glslcanvas) {
     // Initialize a WebGL handle and keyboard/mouse callbacks
     BaseCanvas(glcanvas); 
-    // Make sure this canvas and the glsl canvas both control the same camera
-    glcanvas.camera = glslcanvas.camera; 
     // Store a pointer to the glsl canvas for looking up scene information
     glcanvas.glslcanvas = glslcanvas;
 
@@ -102,6 +100,7 @@ function RayCanvas(glcanvas, glslcanvas) {
     }
 
     glcanvas.repaint = function() {
+        let camera = glcanvas.glslcanvas.camera;
         let shader = glcanvas.shader;
         let gl = glcanvas.gl;
         gl.useProgram(shader);
@@ -109,7 +108,45 @@ function RayCanvas(glcanvas, glslcanvas) {
 
         // Draw two triangles to fill in all the pixels
         gl.drawElements(gl.TRIANGLES, glcanvas.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+        // Redraw if walking
+        let thisTime = (new Date()).getTime();
+        let dt = (thisTime - glcanvas.lastTime)/1000.0;
+        glcanvas.lastTime = thisTime;
+        if (glcanvas.movelr != 0 || glcanvas.moveud != 0 || glcanvas.movefb != 0) {
+            camera.translate(0, 0, glcanvas.movefb, glcanvas.walkspeed*dt);
+            camera.translate(0, glcanvas.moveud, 0, glcanvas.walkspeed*dt);
+            camera.translate(glcanvas.movelr, 0, 0, glcanvas.walkspeed*dt);
+            camera.position = vecToStr(camera.pos);
+            requestAnimFrame(glcanvas.repaint);
+        }
+
     }
+
+    /**
+     * A function to move the camera associated to the glsl canvas
+     */
+    glcanvas.clickerDraggedSync = function(evt) {
+        evt.preventDefault();
+        let mousePos = this.getMousePos(evt);
+        let dX = mousePos.X - this.lastX;
+        let dY = mousePos.Y - this.lastY;
+        this.lastX = mousePos.X;
+        this.lastY = mousePos.Y;
+        let camera = glcanvas.glslcanvas.camera;
+        if (camera === null) {
+            return;
+        }
+        //Rotate camera by mouse dragging
+        camera.rotateLeftRight(-dX);
+        camera.rotateUpDown(-dY);
+        requestAnimFrame(glcanvas.repaint);
+        return false;
+    }
+    glcanvas.removeEventListener('mousemove', glcanvas.clickerDragged);
+    glcanvas.addEventListener('mousemove', glcanvas.clickerDraggedSync);
+    glcanvas.removeEventListener('touchmove', glcanvas.clickerDragged);
+    glcanvas.addEventListener('touchmove', glcanvas.clickerDraggedSync);
 
     glcanvas.setupBuffers();
     glcanvas.setupShaders();
