@@ -56,6 +56,8 @@ uniform Material materials[MAX_MATERIALS];
 uniform vec3 eye;
 uniform vec3 right;
 uniform vec3 up;
+uniform float fovx;
+uniform float fovy;
 
 
 /*******************************************
@@ -255,9 +257,9 @@ bool pointInShadow(vec3 p, int lightIndex) {
     return true; // TODO: This is a dummy value
 }
 
-
+varying vec2 v_position;
 void main() {
-    vec3 c = vec3(gl_FragCoord.x / canvas_width, gl_FragCoord.y / canvas_height, 0);
+    vec3 c = vec3((v_position.x+1.0)/2.0, (v_position.y+1.0)/2.0, 0);
     c *= lights[0].color;
     gl_FragColor = vec4(c, 1.0);
 }

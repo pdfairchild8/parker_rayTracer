@@ -11,7 +11,7 @@
  */
 
 
-const BASIC_VERTEXSHADER_SRC = "attribute vec2 a_position;void main() {gl_Position = vec4(a_position, 0, 1);}";
+const BASIC_VERTEXSHADER_SRC = "attribute vec2 a_position;varying vec2 v_position;void main() {gl_Position = vec4(a_position, 0, 1);v_position = a_position;}";
 const MAX_LIGHTS = 10
 const MAX_MATERIALS = 10
 
@@ -67,6 +67,8 @@ function RayCanvas(glcanvas, glslcanvas) {
             gl.uniform3fv(shader.u_eye, camera.pos);
             gl.uniform3fv(shader.u_right, camera.right);
             gl.uniform3fv(shader.u_up, camera.up);
+            gl.uniform1f(shader.u_fovx, camera.fovx);
+            gl.uniform1f(shader.u_fovy, camera.fovy);
         }
         let scene = glcanvas.glslcanvas.scene;
         if (!(scene === null)) {
@@ -168,6 +170,8 @@ function RayCanvas(glcanvas, glslcanvas) {
         shader.u_eye = gl.getUniformLocation(shader, "eye");
         shader.u_right = gl.getUniformLocation(shader, "right");
         shader.u_up = gl.getUniformLocation(shader, "up");
+        shader.u_fovx = gl.getUniformLocation(shader, "fovx");
+        shader.u_fovy = gl.getUniformLocation(shader, "fovy");
         shader.u_numLights = gl.getUniformLocation(shader, "numLights");
         shader.u_numMaterials = gl.getUniformLocation(shader, "numMaterials");
         shader.u_lights = [];
