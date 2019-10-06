@@ -64,36 +64,9 @@ uniform float fovy;
            RAY CASTING FUNCTIONS
 ********************************************/
 
+// TODO: Put helper functions here if you'd like
 
-/**
-* Given a point on a plane and a normal, intersect a ray
-* with the plane they determine
-*
-* @param {Ray} ray : The ray in world coordinates
-* @param {vec3} n : The plane normal
-* @param {vec3} p : A point on the plane
-* @param {int} mIdx : Array index of material that the plane is made of
-* @param {Intersection (out)} intersect : The intersection
-* 
-* @returns {float} t : Parameter t so that point of intersection is ray.P0 + t*ray.V
-*/
-float rayIntersectPlane(Ray ray, vec3 n, vec3 p, int mIdx, out Intersection intersect) {
-    float num = dot(ray.v, n);
-    if (abs(num) < EPS) {
-        // The ray is parallel to the plane
-        return INF;
-    }
-    float denom = dot(ray.p0, n) - dot(p, n);
-    float t = -num/denom;
-    if (t < -EPS) {
-        // Ray points away from the plane
-        return INF;
-    }
-    intersect.p = ray.p0 + t*ray.v;
-    intersect.n = n;
-    intersect.mIdx = mIdx;
-    return t;
-}
+/** REFERENCE SOLUTION HAS 11 LINES HERE **/
 
 
 /**
@@ -105,20 +78,23 @@ float rayIntersectPlane(Ray ray, vec3 n, vec3 p, int mIdx, out Intersection inte
 * @param {vec3} b : Point b on the triangle
 * @param {vec3} c: Point c on the triangle
 * @param {int} mIdx : Array index of material that the triangle is made of
-* @param {mat4} M: A transformation to apply to the triangle before ray intersection
+* @param {mat4} MInv: Inverse of the transformation M that's applied to the triangle before ray intersection
 * @param {mat3} N: The normal transformation associated to M
 * @param {Intersection (out)} intersect : The intersection
-* 
+*
 * @returns {float} t : Parameter t so that point of intersection is ray.P0 + t*ray.V
 */
-float rayIntersectTriangle(Ray ray, vec3 a, vec3 b, vec3 c, 
-                            int mIdx, mat4 M, mat3 N,
+float rayIntersectTriangle(Ray ray, vec3 a, vec3 b, vec3 c,
+                            int mIdx, mat4 MInv, mat3 N,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
+
+
+/** REFERENCE SOLUTION HAS 30 LINES HERE **/
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
-    return INF; 
+    return INF;
 }
 
 
@@ -129,20 +105,22 @@ float rayIntersectTriangle(Ray ray, vec3 a, vec3 b, vec3 c,
 * @param {vec3} c : Center of the sphere
 * @param {float} r : Radius of the sphere
 * @param {int} mIdx : Array index of material that the sphere is made of
-* @param {mat4} M: A transformation to apply to the sphere before ray intersection
+* @param {mat4} MInv: Inverse of the transformation M that's applied to the sphere before ray intersection
 * @param {mat3} N: The normal transformation associated to M
 * @param {Intersection (out)} intersect : The intersection
-* 
+*
 * @returns {float} t : Parameter t so that point of intersection is ray.P0 + t*ray.V
 */
-float rayIntersectSphere(Ray ray, vec3 c, float r, 
-                            int mIdx, mat4 M, mat3 N,
+float rayIntersectSphere(Ray ray, vec3 c, float r,
+                            int mIdx, mat4 MInv, mat3 N,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
+
+/** REFERENCE SOLUTION HAS 41 LINES HERE **/
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
-    return INF; 
+    return INF;
 }
 
 
@@ -158,20 +136,23 @@ float rayIntersectSphere(Ray ray, vec3 c, float r,
 * @param {float} length : Extent of the box along the z dimension
 * @param {vec3} c : Center of the box
 * @param {int} mIdx : Array index of material that the box is made of
-* @param {mat4} M: A transformation to apply to the box before ray intersection
+* @param {mat4} MInv: Inverse of the transformation M that's applied to the box before ray intersection
 * @param {mat3} N: The normal transformation associated to M
 * @param {Intersection (out)} intersect : The intersection
-* 
+*
 * @returns {float} t : Parameter t so that point of intersection is ray.P0 + t*ray.V
 */
-float rayIntersectBox(Ray ray, float width, float height, float length, 
-                        vec3 c, int mIdx, mat4 M, mat3 N, 
+float rayIntersectBox(Ray ray, float width, float height, float length,
+                        vec3 c, int mIdx, mat4 MInv, mat3 N,
                         out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
+
+
+
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
-    return INF; 
+    return INF;
 }
 
 
@@ -183,20 +164,20 @@ float rayIntersectBox(Ray ray, float width, float height, float length,
 * @param {float} r : Radius of cylinder
 * @param {float} h : Height of cylinder
 * @param {int} mIdx : Array index of material that the cylinder is made of
-* @param {mat4} M: A transformation to apply to the cylinder before ray intersection
+* @param {mat4} MInv: Inverse of the transformation M that's applied to the cylinder before ray intersection
 * @param {mat3} N: The normal transformation associated to M
 * @param {Intersection (out)} intersect : The intersection
-* 
+*
 * @returns {float} t : Parameter t so that point of intersection is ray.P0 + t*ray.V
 */
 float rayIntersectCylinder(Ray ray, vec3 c, float r, float h,
-                            int mIdx, mat4 M, mat3 N,
+                            int mIdx, mat4 MInv, mat3 N,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
-    return INF; 
+    return INF;
 }
 
 
@@ -208,20 +189,20 @@ float rayIntersectCylinder(Ray ray, vec3 c, float r, float h,
 * @param {float} r : Radius of cone
 * @param {float} h : Height of cone
 * @param {int} mIdx : Array index of material that the cone is made of
-* @param {mat4} M: A transformation to apply to the cone before ray intersection
+* @param {mat4} MInv: Inverse of the transformation M that's applied to the cone before ray intersection
 * @param {mat3} N: The normal transformation associated to M
 * @param {Intersection (out)} intersect : The intersection
-* 
+*
 * @returns {float} t : Parameter t so that point of intersection is ray.P0 + t*ray.V
 */
 float rayIntersectCone(Ray ray, vec3 c, float r, float h,
-                            int mIdx, mat4 M, mat3 N,
+                            int mIdx, mat4 MInv, mat3 N,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
-    return INF; 
+    return INF;
 }
 
 
@@ -236,17 +217,17 @@ float rayIntersectCone(Ray ray, vec3 c, float r, float h,
 *
 * @param {Ray} ray : The ray in world coordinates
 * @param {Intersection (out)} intersect : The intersection
-* 
+*
 * @returns {float} t : Parameter t so that point of intersection is ray.P0 + t*ray.V
 */
-float rayIntersectScene(Ray ray, out Intersection intersect);
+float rayIntersectScene(Ray ray, out Intersection intersect){return INF;}
 
 
 /*******************************************
         RAY ILLUMINATION FUNCTIONS
 ********************************************/
 
-/** 
+/**
 * Determine whether a point is in the shadow of a light
 *
 * @param {vec3} p : Location of the point we're checking
@@ -259,6 +240,10 @@ bool pointInShadow(vec3 p, int lightIndex) {
 
 varying vec2 v_position;
 void main() {
+
+/** REFERENCE SOLUTION HAS 16 LINES HERE **/
+    // TODO: These are dummy values below that simply color the canvas
+    // by its fragment position
     vec3 c = vec3((v_position.x+1.0)/2.0, (v_position.y+1.0)/2.0, 0);
     c *= lights[0].color;
     gl_FragColor = vec4(c, 1.0);

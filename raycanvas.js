@@ -12,6 +12,11 @@
 
 
 const BASIC_VERTEXSHADER_SRC = "attribute vec2 a_position;varying vec2 v_position;void main() {gl_Position = vec4(a_position, 0, 1);v_position = a_position;}";
+const DEFAULT_RAY_INTERSECT_SCENE_SRC = "float rayIntersectScene(Ray ray, out Intersection intersect){return INF;}";
+const CHECK_NEAREST_INTERSECTION_SRC = "\tif(tCurr < tMin) {\n" +
+                                        "\t\ttMin = tCurr;\n"+
+                                        "\t\tintersect = intersectCurr;\n" +
+                                        "\t}\n";
 const MAX_LIGHTS = 10
 const MAX_MATERIALS = 10
 
@@ -133,17 +138,30 @@ function RayCanvas(glcanvas, glslcanvas) {
     /**
      * A function to compile together the vertex shader and the fragment shader
      * setup from the scene, and to get pointers to all of the uniforms
+     * 
+     * @param {string} rayIntersectSceneStr The code that defines the rayIntersectScene string
+     * @param {boolean} verbose Whether to print the final shader code to the console
      */
-    glcanvas.setupShaders = function(fragmentSrcPost) {
+    glcanvas.setupShaders = function(rayIntersectSceneStr, verbose) {
+        if (rayIntersectSceneStr === undefined) {
+            rayIntersectSceneStr = DEFAULT_RAY_INTERSECT_SCENE_SRC;
+        }
+        if (verbose === undefined) {
+            verbose = false;
+        }
         let gl = glcanvas.gl;
         if (!(glcanvas.fragmentShader === null)) {
             gl.deleteShader(glcanvas.fragmentShader);
         }
-        if (fragmentSrcPost === undefined) {
-            fragmentSrcPost = "";
+        if (rayIntersectSceneStr === undefined) {
+            rayIntersectSceneStr = "";
         }
         let tic = performance.now();
-        glcanvas.fragmentShader = getShader(gl, glcanvas.fragmentSrcPre + fragmentSrcPost, "fragment");
+        let s = glcanvas.fragmentSrcPre.replace(DEFAULT_RAY_INTERSECT_SCENE_SRC, rayIntersectSceneStr);
+        if (verbose) {
+            console.log(s);
+        }
+        glcanvas.fragmentShader = getShader(gl, s, "fragment");
 
         glcanvas.shader = gl.createProgram();
         let shader = glcanvas.shader;
@@ -213,7 +231,11 @@ function RayCanvas(glcanvas, glslcanvas) {
         glMatrix.mat4.mul(nextTransform, transform, node.transform);
         let N = glMatrix.mat3.create();
         glMatrix.mat3.normalFromMat4(N, nextTransform);
+        let MInv = glMatrix.mat4.create();
+        glMatrix.mat4.invert(MInv, nextTransform);
         let retStr = "";
+        let meshes = {};
+        let meshIdx = 0;
         node.shapes.forEach(function(shape) {
             if (!('material' in shape)) {
                 console.log("Error: Material not specified for node");
@@ -241,9 +263,10 @@ function RayCanvas(glcanvas, glslcanvas) {
                     retStr += "ray, " + width.toFixed(k) + ", " + 
                               height.toFixed(k) + ", " + length.toFixed(k);
                     retStr += ", " + vec3ToGLSLStr(center) + ", " + mIdx;
-                    retStr += ", " + matToGLSLStr(nextTransform)
+                    retStr += ", " + matToGLSLStr(MInv)
                     retStr += ", " + matToGLSLStr(N)
                     retStr += ", intersectCurr);\n";
+                    retStr += CHECK_NEAREST_INTERSECTION_SRC;
                 }
                 else if (shape.type == "sphere") {
                     retStr += "\ttCurr = rayIntersectSphere("
@@ -257,9 +280,10 @@ function RayCanvas(glcanvas, glslcanvas) {
                     }
                     retStr += "ray, " +  vec3ToGLSLStr(center)
                     retStr += ", " + radius.toFixed(k) + ", " + mIdx;
-                    retStr += ", " + matToGLSLStr(nextTransform)
+                    retStr += ", " + matToGLSLStr(MInv)
                     retStr += ", " + matToGLSLStr(N)
                     retStr += ", intersectCurr);\n";
+                    retStr += CHECK_NEAREST_INTERSECTION_SRC;
                 }
                 else if (shape.type == "cylinder") {
                     retStr += "\ttCurr = rayIntersectCylinder("
@@ -278,9 +302,10 @@ function RayCanvas(glcanvas, glslcanvas) {
                     retStr += "ray, " +  vec3ToGLSLStr(center)
                     retStr += ", " + radius.toFixed(k) 
                     retStr += ", " + height.toFixed(k) + ", " + mIdx;
-                    retStr += ", " + matToGLSLStr(nextTransform)
+                    retStr += ", " + matToGLSLStr(MInv)
                     retStr += ", " + matToGLSLStr(N)
                     retStr += ", intersectCurr);\n";
+                    retStr += CHECK_NEAREST_INTERSECTION_SRC;
                 }
                 else if (shape.type == "cone") {
                     retStr += "\ttCurr = rayIntersectCone("
@@ -299,14 +324,47 @@ function RayCanvas(glcanvas, glslcanvas) {
                     retStr += "ray, " +  vec3ToGLSLStr(center)
                     retStr += ", " + radius.toFixed(k) 
                     retStr += ", " + height.toFixed(k) + ", " + mIdx;
-                    retStr += ", " + matToGLSLStr(nextTransform)
+                    retStr += ", " + matToGLSLStr(MInv)
                     retStr += ", " + matToGLSLStr(N)
                     retStr += ", intersectCurr);\n";
+                    retStr += CHECK_NEAREST_INTERSECTION_SRC;
                 }
-                retStr += "\tif(tCurr < tMin) {\n" +
-                          "\t\ttMin = tCurr;\n"+
-                          "\t\tintersectMin = intersectCurr;\n" +
-                          "\t}\n";
+                else if (shape.type == "mesh") {
+                    if (shape.mesh === null) {
+                        console.log("ERROR: No mesh specified for mesh shape. Not loading into shader");
+                    }
+                    else {
+                        let mesh = shape.mesh;
+                        // Step 1: Copy mesh vertices over if they haven't been copied already
+                        if (!(mesh.filename in meshes)) {
+                            meshes[mesh.filename] = "m" + meshIdx;
+                            meshIdx += 1;
+                            //First copy over all vertices into their own variables
+                            for (let i = 0; i < mesh.vertices.length; i++) {
+                                retStr += "\tvec3 " + meshes[mesh.filename] + "_" + "v" + i;
+                                retStr += " = " + vec3ToGLSLStr(mesh.vertices[i].pos) + ";\n";
+                            }
+                        }
+                        // Step 2: Check each face
+                        let vertPrefix = meshes[mesh.filename] + "_" + "v";
+                        for (let i = 0; i < mesh.faces.length; i++) {
+                            let verts = mesh.faces[i].getVertices();
+                            // Go through each triangle in CCW order
+                            for (let t = 0; t < verts.length-2; t++) {
+                                retStr += "\ttCurr = rayIntersectTriangle(ray";
+                                retStr += ", " + vertPrefix + verts[0].ID;
+                                for (let k = 1; k < 3; k++) {
+                                    retStr += ", " + vertPrefix + verts[(t+k)%verts.length].ID;
+                                }
+                                retStr += ", " + mIdx;
+                                retStr += ", " + matToGLSLStr(MInv)
+                                retStr += ", " + matToGLSLStr(N)
+                                retStr += ", intersectCurr);\n";
+                                retStr += CHECK_NEAREST_INTERSECTION_SRC;
+                            }
+                        }
+                    }
+                }
             }
         });
         if ('children' in node) {
@@ -364,21 +422,19 @@ function RayCanvas(glcanvas, glslcanvas) {
         });
 
         // Step 2: Setup fragment shader to hardcode in scene
-        let fragmentSrcPost = "\n\n" +
+        let rayIntersectSceneStr = "\n\n" +
           "float rayIntersectScene(Ray ray, out Intersection intersect) {\n" +
-          "\tIntersection intersectMin;\n" +
           "\tfloat tMin = INF;\n" +
           "\tIntersection intersectCurr;\n" + 
           "\tfloat tCurr = INF;\n";
         
         let m = glMatrix.mat4.create();
         scene.children.forEach(function(node) {
-            fragmentSrcPost += glcanvas.updateSceneRec(node, m) + "\n";
+            rayIntersectSceneStr += glcanvas.updateSceneRec(node, m) + "\n";
         });
 
-        fragmentSrcPost += "\treturn tMin;\n}";
-        console.log(fragmentSrcPost);
-        glcanvas.setupShaders(fragmentSrcPost);
+        rayIntersectSceneStr += "\treturn tMin;\n}";
+        glcanvas.setupShaders(rayIntersectSceneStr, true);
     }
 
     glcanvas.repaint = function() {
