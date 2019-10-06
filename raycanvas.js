@@ -67,6 +67,17 @@ function RayCanvas(glcanvas, glslcanvas) {
         let gl = glcanvas.gl;
         gl.uniform1f(shader.u_canvas_width, glcanvas.clientWidth);
         gl.uniform1f(shader.u_canvas_height, glcanvas.clientHeight);
+        let showLights = 0;
+        if (glcanvas.glslcanvas.showLights) {
+            showLights = 1;
+        }
+        gl.uniform1i(shader.u_showLights, showLights);
+        gl.uniform1f(shader.u_beaconRadius, BEACON_SIZE);
+        let orthographic = 0;
+        if (glcanvas.orthographic) {
+            orthographic = 1;
+        }
+        gl.uniform1i(shader.u_orthographic, orthographic);
         let camera = glcanvas.glslcanvas.camera;
         if (!(camera === null)) {
             gl.uniform3fv(shader.u_eye, camera.pos);
@@ -185,13 +196,14 @@ function RayCanvas(glcanvas, glslcanvas) {
         shader.u_numObjects = gl.getUniformLocation(shader, "numObjects");
         shader.u_numLights = gl.getUniformLocation(shader, "numLights");
         shader.u_numMaterials = gl.getUniformLocation(shader, "numMaterials");
+        shader.u_showLights = gl.getUniformLocation(shader, "showLights");
+        shader.u_beaconRadius = gl.getUniformLocation(shader, "beaconRadius");
+        shader.u_orthographic = gl.getUniformLocation(shader, "orthographic");
         shader.u_eye = gl.getUniformLocation(shader, "eye");
         shader.u_right = gl.getUniformLocation(shader, "right");
         shader.u_up = gl.getUniformLocation(shader, "up");
         shader.u_fovx = gl.getUniformLocation(shader, "fovx");
         shader.u_fovy = gl.getUniformLocation(shader, "fovy");
-        shader.u_numLights = gl.getUniformLocation(shader, "numLights");
-        shader.u_numMaterials = gl.getUniformLocation(shader, "numMaterials");
         shader.u_lights = [];
         for (let i = 0; i < MAX_LIGHTS; i++) {
             let light = {
@@ -234,8 +246,6 @@ function RayCanvas(glcanvas, glslcanvas) {
         let MInv = glMatrix.mat4.create();
         glMatrix.mat4.invert(MInv, nextTransform);
         let retStr = "";
-        let meshes = {};
-        let meshIdx = 0;
         node.shapes.forEach(function(shape) {
             if (!('material' in shape)) {
                 console.log("Error: Material not specified for node");
@@ -278,6 +288,7 @@ function RayCanvas(glcanvas, glslcanvas) {
                     if ('center' in shape) {
                         center = shape.center;
                     }
+                    console.log(MInv);
                     retStr += "ray, " +  vec3ToGLSLStr(center)
                     retStr += ", " + radius.toFixed(k) + ", " + mIdx;
                     retStr += ", " + matToGLSLStr(MInv)
@@ -336,20 +347,20 @@ function RayCanvas(glcanvas, glslcanvas) {
                     else {
                         let mesh = shape.mesh;
                         // Step 1: Copy mesh vertices over if they haven't been copied already
-                        if (!(mesh.filename in meshes)) {
-                            meshes[mesh.filename] = "m" + meshIdx;
-                            meshIdx += 1;
+                        if (!('prefix' in mesh)) {
+                            mesh.prefix = "m" + glcanvas.meshIdx;
+                            glcanvas.meshIdx += 1;
                             //First copy over all vertices into their own variables
                             for (let i = 0; i < mesh.vertices.length; i++) {
-                                retStr += "\tvec3 " + meshes[mesh.filename] + "_" + "v" + i;
+                                retStr += "\tvec3 " + mesh.prefix + "_" + "v" + i;
                                 retStr += " = " + vec3ToGLSLStr(mesh.vertices[i].pos) + ";\n";
                             }
                         }
                         // Step 2: Check each face
-                        let vertPrefix = meshes[mesh.filename] + "_" + "v";
+                        let vertPrefix = mesh.prefix + "_" + "v";
                         for (let i = 0; i < mesh.faces.length; i++) {
                             let verts = mesh.faces[i].getVertices();
-                            // Go through each triangle in CCW order
+                            // Go through each triangle in CCW order in a triangle fan
                             for (let t = 0; t < verts.length-2; t++) {
                                 retStr += "\ttCurr = rayIntersectTriangle(ray";
                                 retStr += ", " + vertPrefix + verts[0].ID;
@@ -429,6 +440,7 @@ function RayCanvas(glcanvas, glslcanvas) {
           "\tfloat tCurr = INF;\n";
         
         let m = glMatrix.mat4.create();
+        glcanvas.meshIdx = 0;
         scene.children.forEach(function(node) {
             rayIntersectSceneStr += glcanvas.updateSceneRec(node, m) + "\n";
         });
@@ -452,9 +464,9 @@ function RayCanvas(glcanvas, glslcanvas) {
         let dt = (thisTime - glcanvas.lastTime)/1000.0;
         glcanvas.lastTime = thisTime;
         if (glcanvas.movelr != 0 || glcanvas.moveud != 0 || glcanvas.movefb != 0) {
-            camera.translate(0, 0, glcanvas.movefb, glcanvas.walkspeed*dt);
-            camera.translate(0, glcanvas.moveud, 0, glcanvas.walkspeed*dt);
-            camera.translate(glcanvas.movelr, 0, 0, glcanvas.walkspeed*dt);
+            camera.translate(0, 0, glcanvas.movefb, glcanvas.glslcanvas.walkspeed*dt);
+            camera.translate(0, glcanvas.moveud, 0, glcanvas.glslcanvas.walkspeed*dt);
+            camera.translate(glcanvas.movelr, 0, 0, glcanvas.glslcanvas.walkspeed*dt);
             camera.position = vecToStr(camera.pos);
             requestAnimFrame(glcanvas.repaint);
         }
@@ -486,6 +498,13 @@ function RayCanvas(glcanvas, glslcanvas) {
     glcanvas.addEventListener('mousemove', glcanvas.clickerDraggedSync);
     glcanvas.removeEventListener('touchmove', glcanvas.clickerDragged);
     glcanvas.addEventListener('touchmove', glcanvas.clickerDraggedSync);
+
+    glcanvas.rayMenu = glcanvas.glslcanvas.gui.addFolder('Ray Tracing Options');
+    glcanvas.orthographic = false;
+    glcanvas.rayMenu.add(glcanvas, 'orthographic').onChange(function() {
+        requestAnimFrame(glcanvas.repaint);
+    });
+
 
     glcanvas.setupInitialBuffers();
     glcanvas.setupShaders();
