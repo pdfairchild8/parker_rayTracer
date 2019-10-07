@@ -5,12 +5,12 @@
             "kd":[0.0, 1.0, 0.0]
         },
         "shinygreen":{
-            "kd":[0.0, 1.0, 0.0],
+            "kd":[0.0, 0.0, 0.0],
             "ks":[0.2, 1, 0.2]
         },
         "shinypurple":{
-            "kd":[0.55, 0.1, 0.7],
-            "ks":[0.55, 0.1, 0.7],
+            "kd":[0.0, 0.0, 0.0],
+            "ks":[0.8, 0.3, 0.9],
             "shininess":1000
         },
         "red":{
@@ -19,6 +19,10 @@
         "orange":{
             "kd":[0.9, 0.85, 0.1],
             "ks":[1, 1, 1]
+        },
+        "specialgray":{
+            "kd":[0.5, 0.5, 0.5],
+            "special":true
         }
     },
 
@@ -30,6 +34,13 @@
         {
             "pos":[0, 2, -4],
             "color":[1, 1, 1]
+        },
+        {
+            "pos":[3.7, 7.2, 9],
+            "color":[0, 1, 0],
+            "atten":[1, 0, 0],
+            "towards":[0, -1, 0],
+            "angle":0.3
         }
     ],
     
@@ -71,6 +82,7 @@
                             "shapes":[
                                 {
                                 "type":"box",
+                                "material":"specialgray",
                                 "length":1,
                                 "width":1,
                                 "height":1,
@@ -92,8 +104,18 @@
                     [10, 0, 10],
                     [10, 0, -10], 
                     [-10, 0, -10]
-                ],
-                "material":"green"
+                ]
+                }
+            ]
+        },
+
+        {
+            "shapes":[
+                {
+                    "type":"sphere",
+                    "radius":2,
+                    "center":[-5, 1, -5],
+                    "material":"specialgray"
                 }
             ]
         },
@@ -126,20 +148,6 @@
                     "radius":2,
                     "center":[0, 10, 0],
                     "material":"shinypurple"
-                },
-                {
-                    "type":"cylinder",
-                    "radius":1,
-                    "height":3,
-                    "center":[-4, 0, 0],
-                    "material":"red"
-                },
-                {
-                    "type":"cone",
-                    "radius":1,
-                    "height":2,
-                    "center":[-4, 0, -4],
-                    "material":"red" 
                 },
                 {
                     "type":"polygon",

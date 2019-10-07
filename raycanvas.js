@@ -97,6 +97,12 @@ function RayCanvas(glcanvas, glslcanvas) {
                 for (let i = 0; i < numLights; i++) {
                     gl.uniform3fv(shader.u_lights[i].pos, scene.lights[i].camera.pos);
                     gl.uniform3fv(shader.u_lights[i].color, scene.lights[i].color);
+                    gl.uniform3fv(shader.u_lights[i].atten, scene.lights[i].atten);
+                    let towards = glMatrix.vec3.create();
+                    glMatrix.vec3.cross(towards, scene.lights[i].camera.up, scene.lights[i].camera.right);
+                    glMatrix.vec3.normalize(towards, towards);
+                    gl.uniform3fv(shader.u_lights[i].towards, towards);
+                    gl.uniform1f(shader.u_lights[i].angle, scene.lights[i].angle);
                 }                
             }
             if (scene.materialsArr === null) {
@@ -111,6 +117,11 @@ function RayCanvas(glcanvas, glslcanvas) {
                     gl.uniform3fv(shader.u_materials[i].ka, scene.materialsArr[i].ka);
                     gl.uniform1f(shader.u_materials[i].shininess, scene.materialsArr[i].shininess);
                     gl.uniform1f(shader.u_materials[i].refraction, scene.materialsArr[i].refraction);
+                    let special = 0;
+                    if (scene.materialsArr[i].special) {
+                        special = 1;
+                    }
+                    gl.uniform1i(shader.u_materials[i].special, special);
                 }
             }
         }
@@ -209,7 +220,9 @@ function RayCanvas(glcanvas, glslcanvas) {
             let light = {
                 pos: gl.getUniformLocation(shader, "lights["+i+"].pos"),
                 color: gl.getUniformLocation(shader, "lights["+i+"].color"),
-                falloff: gl.getUniformLocation(shader, "lights["+i+"].falloff")
+                atten: gl.getUniformLocation(shader, "lights["+i+"].atten"),
+                towards: gl.getUniformLocation(shader, "lights["+i+"].towards"),
+                angle: gl.getUniformLocation(shader, "lights["+i+"].angle")
             };
             shader.u_lights.push(light);
         }
@@ -220,7 +233,8 @@ function RayCanvas(glcanvas, glslcanvas) {
                 ks: gl.getUniformLocation(shader, "materials["+i+"].ks"),
                 ka: gl.getUniformLocation(shader, "materials["+i+"].ka"),
                 shininess: gl.getUniformLocation(shader, "materials["+i+"].shininess"),
-                refraction: gl.getUniformLocation(shader, "materials["+i+"].refraction")
+                refraction: gl.getUniformLocation(shader, "materials["+i+"].refraction"),
+                special: gl.getUniformLocation(shader, "materials["+i+"].special")
             }
             shader.u_materials.push(material);
         }
@@ -288,7 +302,6 @@ function RayCanvas(glcanvas, glslcanvas) {
                     if ('center' in shape) {
                         center = shape.center;
                     }
-                    console.log(MInv);
                     retStr += "ray, " +  vec3ToGLSLStr(center)
                     retStr += ", " + radius.toFixed(k) + ", " + mIdx;
                     retStr += ", " + matToGLSLStr(MInv)

@@ -16,12 +16,15 @@ struct Material {
   vec3 kt;
   float shininess;
   float refraction;
+  int special;
 };
 
 struct Light {
     vec3 pos;
     vec3 color;
-    float falloff;
+    vec3 atten;
+    vec3 towards;
+    float angle;
 };
 
 struct Ray {
@@ -33,6 +36,7 @@ struct Intersection {
   vec3 p; // Point of intersection
   vec3 n; // Normal of intersection
   int mIdx; // Index into materials array
+  float sCoeff; // Coefficient for checkerboard or special material
 };
 
 
@@ -125,7 +129,7 @@ float rayIntersectTriangle(Ray ray, vec3 a, vec3 b, vec3 c,
     intersect.mIdx = mIdx; // Store away the material index
 
 
-/** REFERENCE SOLUTION HAS 20 LINES HERE **/
+/** REFERENCE SOLUTION HAS 21 LINES HERE **/
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
@@ -151,10 +155,11 @@ float rayIntersectSphere(Ray ray, vec3 c, float r,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
 
-/** REFERENCE SOLUTION HAS 41 LINES HERE **/
+/** REFERENCE SOLUTION HAS 52 LINES HERE **/
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
+    intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
     return INF;
 }
 
@@ -182,10 +187,11 @@ float rayIntersectBox(Ray ray, float W, float H, float L,
                         out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
 
-/** REFERENCE SOLUTION HAS 38 LINES HERE **/
+/** REFERENCE SOLUTION HAS 48 LINES HERE **/
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
+    intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
     return INF;
 }
 
@@ -208,6 +214,7 @@ float rayIntersectCylinder(Ray ray, vec3 c, float r, float h,
                             int mIdx, mat4 MInv, mat3 N,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
+    intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
@@ -233,6 +240,7 @@ float rayIntersectCone(Ray ray, vec3 c, float r, float h,
                             int mIdx, mat4 MInv, mat3 N,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
+    intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
@@ -305,7 +313,7 @@ vec3 getPhongColor(Intersection intersect, Material m) {
     // be replaced with code to do Phong illumination below
     color = 0.5*(intersect.n + 1.0);
 
-/** REFERENCE SOLUTION HAS 24 LINES HERE **/
+/** REFERENCE SOLUTION HAS 39 LINES HERE **/
     return color;
 }
 
@@ -358,6 +366,7 @@ void main() {
     Ray rayInitial = ray;
     bool insideObj = false;
     Intersection intersect;
+    intersect.sCoeff = 1.0;
     vec3 color = vec3(0.0, 0.0, 0.0);
     vec3 weight = vec3(1.0, 1.0, 1.0);
     float t;
@@ -387,7 +396,7 @@ void main() {
             // transmission coefficient kt is zero in all components
             // Otherwise, do transmission with snell's law
 
-/** REFERENCE SOLUTION HAS 3 LINES HERE **/
+/** REFERENCE SOLUTION HAS 10 LINES HERE **/
         }
         else {
             // Ray doesn't intersect anything, so no use continuing
