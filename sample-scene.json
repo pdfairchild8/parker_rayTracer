@@ -69,8 +69,8 @@
             ],
             "children":[
                 { 
-                    "transform":[0.707, 0, 0.707, 0,
-                        0, 1, 0, 0,
+                    "transform":[0.707, 0, 0.707, 2,
+                        0, 1, 0, 0.5,
                         -0.707, 0, 0.707, 0,
                         0, 0, 0, 1],
                     "children":[
@@ -82,11 +82,7 @@
                             "shapes":[
                                 {
                                 "type":"box",
-                                "material":"specialgray",
-                                "length":1,
-                                "width":1,
-                                "height":1,
-                                "center":[2, 0.5, 1]
+                                "material":"specialgray"
                                 }
                             ]
                         }

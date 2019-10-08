@@ -2,9 +2,10 @@ precision mediump float;
 
 #define INF 1.0e+12
 #define EPS 1.0e-3 // Reflect/shadow/transmission ray offset
-#define MAX_RECURSION 1 // Maximum depth for rays
+#define MAX_RECURSION 3 // Maximum depth for rays
 #define MAX_LIGHTS 10
 #define MAX_MATERIALS 10
+#define M_PI 3.1415926535897932384626433832795
 
 /*******************************************
                 DATA TYPES
@@ -72,7 +73,7 @@ uniform float fovy;
 
 // TODO: Put helper functions here if you'd like
 
-/** REFERENCE SOLUTION HAS 11 LINES HERE **/
+/** TODO: PUT YOUR CODE HERE **/
 
 
 /**
@@ -129,7 +130,7 @@ float rayIntersectTriangle(Ray ray, vec3 a, vec3 b, vec3 c,
     intersect.mIdx = mIdx; // Store away the material index
 
 
-/** REFERENCE SOLUTION HAS 21 LINES HERE **/
+/** TODO: PUT YOUR CODE HERE **/
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
@@ -155,7 +156,7 @@ float rayIntersectSphere(Ray ray, vec3 c, float r,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
 
-/** REFERENCE SOLUTION HAS 52 LINES HERE **/
+/** TODO: PUT YOUR CODE HERE **/
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
@@ -187,7 +188,7 @@ float rayIntersectBox(Ray ray, float W, float H, float L,
                         out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
 
-/** REFERENCE SOLUTION HAS 48 LINES HERE **/
+/** TODO: PUT YOUR CODE HERE **/
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
@@ -215,6 +216,7 @@ float rayIntersectCylinder(Ray ray, vec3 c, float r, float h,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
     intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
+/** TODO: PUT YOUR CODE HERE **/
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
@@ -241,6 +243,7 @@ float rayIntersectCone(Ray ray, vec3 c, float r, float h,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
     intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
+/** TODO: PUT YOUR CODE HERE **/
     // TODO: The below three are dummy values
     intersect.p = vec3(0, 0, 0);
     intersect.n = vec3(0, 0, 0);
@@ -299,7 +302,7 @@ Material getMaterial(int mIdx) {
 */
 bool pointInShadow(Intersection intersect, Light l) {
 
-/** REFERENCE SOLUTION HAS 12 LINES HERE **/
+/** TODO: PUT YOUR CODE HERE **/
     return false; // TODO: This is a dummy value
 }
 
@@ -313,7 +316,7 @@ vec3 getPhongColor(Intersection intersect, Material m) {
     // be replaced with code to do Phong illumination below
     color = 0.5*(intersect.n + 1.0);
 
-/** REFERENCE SOLUTION HAS 39 LINES HERE **/
+/** TODO: PUT YOUR CODE HERE **/
     return color;
 }
 
@@ -331,12 +334,12 @@ Ray getRay() {
         // TODO: Fill in code for constructing orthographic rays
         // (You can ignore this if you aren't doing the orthographic extra task)
 
-/** REFERENCE SOLUTION HAS 3 LINES HERE **/
+/** TODO: PUT YOUR CODE HERE **/
     }
     else {
         // TODO: Fill in ordinary perspective ray based on fovx and fovy (the default option)
 
-/** REFERENCE SOLUTION HAS 5 LINES HERE **/
+/** TODO: PUT YOUR CODE HERE **/
     }
     return ray;
 }
@@ -396,7 +399,7 @@ void main() {
             // transmission coefficient kt is zero in all components
             // Otherwise, do transmission with snell's law
 
-/** REFERENCE SOLUTION HAS 10 LINES HERE **/
+/** TODO: PUT YOUR CODE HERE **/
         }
         else {
             // Ray doesn't intersect anything, so no use continuing
