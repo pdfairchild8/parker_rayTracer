@@ -2,7 +2,7 @@ precision mediump float;
 
 #define INF 1.0e+12
 #define EPS 1.0e-3 // Reflect/shadow/transmission ray offset
-#define MAX_RECURSION 3 // Maximum depth for rays
+#define MAX_RECURSION 1 // Maximum depth for rays
 #define MAX_LIGHTS 10
 #define MAX_MATERIALS 10
 #define M_PI 3.1415926535897932384626433832795
@@ -108,6 +108,11 @@ float rayIntersectPlane(Ray ray, vec3 n, vec3 p, int mIdx, out Intersection inte
     return t;
 }
 
+float getTriangleArea(vec3 a, vec3 b, vec3 c) {
+    vec3 ab = b-a;
+    vec3 ac = c-a;
+    return length(cross(ab,ac))/2.0;
+}
 
 /**
 * Intersect a ray with a given triangle /\abc, assuming a, b, and c
@@ -128,13 +133,49 @@ float rayIntersectTriangle(Ray ray, vec3 a, vec3 b, vec3 c,
                             int mIdx, mat4 MInv, mat3 N,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
+    
+    vec4 temp;
+    vec3 newP0;
+    vec3 newV;
+    vec3 oldP0 = ray.p0;
+    vec3 oldV = ray.v;
 
 
-/** TODO: PUT YOUR CODE HERE **/
-    // TODO: The below three are dummy values
-    intersect.p = vec3(0, 0, 0);
-    intersect.n = vec3(0, 0, 0);
-    return INF;
+    temp = MInv * vec4(ray.p0,1.0);
+    newP0 = vec3(temp[0],temp[1],temp[2]);
+    temp = MInv * vec4(ray.v, 0.0);
+    newV = vec3(temp[0],temp[1],temp[2]);
+
+    ray.p0 = newP0;
+    ray.v = newV;
+
+
+    vec3 ab = b-a;
+    vec3 ac = c-a;
+    vec3 n = normalize(N*cross(ab,ac));
+    float t = dot(a-ray.p0,n)/dot(ray.v,n);
+
+    
+
+
+    if (t >= 0.0) {
+        intersect.p = ray.p0 + ray.v*t;
+        intersect.n = n;
+
+        float ABCarea = getTriangleArea(a,b,c);
+        float alpha = getTriangleArea(c, intersect.p, b)/ABCarea;
+        float beta = getTriangleArea(a, intersect.p, c)/ABCarea;
+        float gamma = getTriangleArea(a,b,intersect.p)/ABCarea;
+
+        if (alpha + beta + gamma == 1.0 || alpha + beta + gamma < 1.01) {
+            return t;
+        } else {
+            return INF;
+        }
+    } else {
+        return INF;
+    }
+    
 }
 
 
@@ -156,12 +197,48 @@ float rayIntersectSphere(Ray ray, vec3 c, float r,
                             out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
 
-/** TODO: PUT YOUR CODE HERE **/
-    // TODO: The below three are dummy values
-    intersect.p = vec3(0, 0, 0);
-    intersect.n = vec3(0, 0, 0);
-    intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
-    return INF;
+    vec4 temp;
+    vec3 newP0;
+    vec3 newV;
+    vec3 oldP0 = ray.p0;
+    vec3 oldV = ray.v;
+
+
+    temp = MInv * vec4(ray.p0,1.0);
+    newP0 = vec3(temp[0],temp[1],temp[2]);
+    temp = MInv * vec4(ray.v, 0.0);
+    newV = vec3(temp[0],temp[1],temp[2]);
+
+    ray.p0 = newP0;
+    ray.v = newV;
+
+    vec3 cp = ray.p0-c;
+
+    float A = dot(ray.v,ray.v);
+    float B = 2.0 * dot(cp,ray.v);
+    float C = dot(cp,cp) - (r*r);
+
+    float disc = B*B - 4.0*A*C;
+    float t1 = (-B - sqrt(disc))/(2.0*A);
+    float t2 = (-B + sqrt(disc))/(2.0*A);
+
+    if (disc >= 0.0) {
+        if (t1 > 0.0) {
+            intersect.p = oldP0 + oldV*t1;
+            intersect.n = normalize(N*(newP0 + newV*t1-c));
+            intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
+            return t1;
+        } else if (t2 > 0.0) {
+            intersect.p = oldP0 + oldV*t2;
+            intersect.n = normalize(N*(newP0 + newV*t2-c));
+            intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
+            return t2;
+        } else {
+            return INF;
+        }
+    } else {
+        return INF;
+    }
 }
 
 
@@ -188,12 +265,121 @@ float rayIntersectBox(Ray ray, float W, float H, float L,
                         out Intersection intersect) {
     intersect.mIdx = mIdx; // Store away the material index
 
-/** TODO: PUT YOUR CODE HERE **/
-    // TODO: The below three are dummy values
-    intersect.p = vec3(0, 0, 0);
-    intersect.n = vec3(0, 0, 0);
+    vec4 temp;
+    vec3 newP0;
+    vec3 newV;
+    vec3 oldP0 = ray.p0;
+    vec3 oldV = ray.v;
+
+
+    temp = MInv * vec4(ray.p0,1.0);
+    newP0 = vec3(temp[0],temp[1],temp[2]);
+    temp = MInv * vec4(ray.v, 0.0);
+    newV = vec3(temp[0],temp[1],temp[2]);
+
+    ray.p0 = newP0;
+    ray.v = newV;
+
+
+    float xmax = c[0] + W/2.0;;
+    float xmin = c[0] - W/2.0;
+    float ymax = c[1] + H/2.0;
+    float ymin = c[1] - H/2.0;
+    float zmax = c[2] + L/2.0;
+    float zmin = c[2] - L/2.0;
+
+    vec3 p1 = c;
+    p1[0] = xmax;
+    vec3 n1 = vec3(1.0,0.0,0.0);
+    Intersection intersect1;
+    float t1 = rayIntersectPlane(ray, n1, p1, mIdx, intersect1);
+
+    vec3 p2 = c;
+    p2[0] = xmin;
+    vec3 n2 = vec3(1.0,0.0,0.0);
+    Intersection intersect2;
+    float t2 = rayIntersectPlane(ray, n2, p2, mIdx, intersect2);
+
+    vec3 p3 = c;
+    p3[1] = ymax;
+    vec3 n3 = vec3(0.0,1.0,0.0);
+    Intersection intersect3;
+    float t3 = rayIntersectPlane(ray, n3, p3, mIdx, intersect3);
+
+    vec3 p4 = c;
+    p4[1] = ymin;
+    vec3 n4 = vec3(0.0,1.0,0.0);
+    Intersection intersect4;
+    float t4 = rayIntersectPlane(ray, n4, p4, mIdx, intersect4);
+
+    vec3 p5 = c;
+    p5[2] = zmax;
+    vec3 n5 = vec3(0.0,0.0,1.0);
+    Intersection intersect5;
+    float t5 = rayIntersectPlane(ray, n5, p5, mIdx, intersect5);
+
+    vec3 p6 = c;
+    p6[2] = zmin;
+    vec3 n6 = vec3(0.0,0.0,1.0);
+    Intersection intersect6;
+    float t6 = rayIntersectPlane(ray, n6, p6, mIdx, intersect6);
+    
+
+    float t = INF;
+
+    if (t1 < t && t1 >= 0.0) {
+        if  (ymin < intersect1.p.y && intersect1.p.y < ymax && zmin < intersect1.p.z && intersect1.p.z < zmax){
+            t = t1;
+            intersect.p = oldP0 + t1*oldV;
+            intersect.n = normalize(N*intersect1.n);
+        }
+        
+    }
+
+    if (t2 < t && t2 >= 0.0) {
+        if (ymin < intersect2.p.y && intersect2.p.y < ymax && zmin < intersect2.p.z && intersect2.p.z < zmax) {
+            t = t2;
+            intersect.p = oldP0 + t2*oldV;
+            intersect.n = normalize(N*intersect2.n);
+        }
+    }
+
+    if (t3 < t && t3 >= 0.0) {
+        if(xmin < intersect3.p.x && intersect3.p.x < xmax && zmin < intersect3.p.z && intersect3.p.z < zmax) {
+            t = t3;
+            intersect.p = oldP0 + t3*oldV;
+            intersect.n = normalize(N*intersect3.n);
+        }
+    }
+
+    if (t4 < t && t4 >= 0.0) {
+        if(xmin < intersect4.p.x && intersect4.p.x < xmax && zmin < intersect4.p.z && intersect4.p.z < zmax) {
+            t = t4;
+            intersect.p = oldP0 + t4*oldV;
+            intersect.n = normalize(N*intersect4.n);
+        }
+    }
+
+    if (t5 < t && t5 >= 0.0) {
+        if(xmin < intersect5.p.x && intersect5.p.x < xmax && ymin < intersect5.p.y  && intersect5.p.y < ymax) {
+            t = t5;
+            intersect.p = oldP0 + t5*oldV;
+            intersect.n = normalize(N*intersect5.n);
+        }
+    }
+
+    if (t6 < t && t6 >= 0.0) {
+        if (xmin < intersect6.p.x && intersect6.p.x < xmax && ymin < intersect6.p.y && intersect6.p.y < ymax) {
+            t = t6;
+            intersect.p = oldP0 + t6*oldV;
+            intersect.n = normalize(N*intersect6.n);
+        }
+    }
+
+
     intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
-    return INF;
+    return t;
+
 }
 
 
@@ -311,12 +497,35 @@ bool pointInShadow(Intersection intersect, Light l) {
 */
 vec3 getPhongColor(Intersection intersect, Material m) {
     vec3 color = vec3(0.0, 0.0, 0.0);
+    vec3 attenuation = vec3(0.0,0.0,0.0);
+    vec3 d = vec3(0.0,0.0,0.0);
+    float diffuse;
+    float specular;
+
     // To help with debugging, color the fragment based on the
     // normal of the intersection.  But this should eventually
     // be replaced with code to do Phong illumination below
     color = 0.5*(intersect.n + 1.0);
 
-/** TODO: PUT YOUR CODE HERE **/
+    
+    /*
+
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        if (i < numLights) {
+            d = lights[i].pos - intersect.p;
+            attenuation = lights[i].color / (lights[i].atten.x + lights[i].atten.y * d + lights[i].atten.z * dot(d,d));
+
+            diffuse = m.kd * //N dot L;
+            specular = m.ks * //-v dot h;
+
+            color = color + attenuation * (diffuse + specular);
+        } else {
+            break;
+        }
+    } */
+    
+
+
     return color;
 }
 
@@ -328,18 +537,17 @@ varying vec2 v_position;
 Ray getRay() {
     Ray ray;
     ray.p0 = eye;
-    // TODO: Finish constructing ray by figuring out direction, using
-    // v_position.x, v_position.y, fovx, fovy, up, and right
-    if (orthographic == 1) {
-        // TODO: Fill in code for constructing orthographic rays
-        // (You can ignore this if you aren't doing the orthographic extra task)
+    vec3 towards = normalize(cross(up,right));
 
-/** TODO: PUT YOUR CODE HERE **/
+    
+    if (orthographic == 1) {
+
+        //This ain't it, chief
+        ray.p0 = eye + 10.0 * v_position.x * right + 10.0 * v_position.y * up;
+        ray.v = normalize(towards + v_position.x*tan(fovx/2.0)*right + v_position.y*tan(fovy/2.0)*up);
     }
     else {
-        // TODO: Fill in ordinary perspective ray based on fovx and fovy (the default option)
-
-/** TODO: PUT YOUR CODE HERE **/
+        ray.v = normalize(towards + v_position.x*tan(fovx/2.0)*right + v_position.y*tan(fovy/2.0)*up);
     }
     return ray;
 }
