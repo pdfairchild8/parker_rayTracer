@@ -2,10 +2,11 @@ precision mediump float;
 
 #define INF 1.0e+12
 #define EPS 1.0e-3 // Reflect/shadow/transmission ray offset
-#define MAX_RECURSION 1 // Maximum depth for rays
+#define MAX_RECURSION 4 // Maximum depth for rays
 #define MAX_LIGHTS 10
 #define MAX_MATERIALS 10
 #define M_PI 3.1415926535897932384626433832795
+#define SOFT_NUMBER 10
 
 /*******************************************
                 DATA TYPES
@@ -487,9 +488,68 @@ Material getMaterial(int mIdx) {
 *                           the light we want to check
 */
 bool pointInShadow(Intersection intersect, Light l) {
+    Ray ray;
+    vec3 dir = l.pos - intersect.p;
+    ray.v = dir;
+    ray.p0 = intersect.p + EPS*normalize(dir);
+    Intersection intersect2;
+    float t = rayIntersectScene(ray, intersect2);
+    
+    if (t >= 1.0) {
+        return false;
+    } else {
+        return true;
+    }
+}
 
-/** TODO: PUT YOUR CODE HERE **/
-    return false; // TODO: This is a dummy value
+float pointInSoftShadow(Intersection intersect, Light l) {
+    Ray ray;
+    vec3 dir = l.pos - intersect.p;
+    ray.v = dir;
+    ray.p0 = intersect.p + EPS*normalize(dir);
+    Intersection intersect2;
+    float t = rayIntersectScene(ray, intersect2);
+    
+    if (t >= 1.0) {
+        return 1.0;
+    } else {
+        return 0.0;
+    }
+}
+
+
+float random (vec2 st) {
+    return fract(sin(dot(st.xy,
+                         vec2(12.9898,78.233)))*
+        43758.5453123);
+}
+
+
+
+float softShadow(Intersection intersect, Light l) {
+    float shadow;
+    float counter = 0.0;
+    float x = random(intersect.p.xy);
+    float y = random(intersect.p.yz);
+    float z = random(intersect.p.xz);
+    vec3 oldPosition = l.pos;
+
+    counter += pointInSoftShadow(intersect,l);
+    vec3 randomValues;
+
+    for (int i=0; i < SOFT_NUMBER; i++) {
+        randomValues = beaconRadius * normalize(vec3(x,y,z));
+        l.pos = oldPosition + randomValues;
+        counter += pointInSoftShadow(intersect,l);
+
+        x = random(vec2(x,y));
+        y = random(vec2(y,z));
+        z = random(vec2(z,x));
+    }
+
+    shadow = counter /(float(SOFT_NUMBER)+1.0);
+
+    return shadow;
 }
 
 /**
@@ -497,32 +557,63 @@ bool pointInShadow(Intersection intersect, Light l) {
 */
 vec3 getPhongColor(Intersection intersect, Material m) {
     vec3 color = vec3(0.0, 0.0, 0.0);
-    vec3 attenuation = vec3(0.0,0.0,0.0);
+    vec3 ci = vec3(0.0,0.0,0.0);
     vec3 d = vec3(0.0,0.0,0.0);
-    float diffuse;
-    float specular;
+    vec3 diffuse;
+    vec3 specular;
 
     // To help with debugging, color the fragment based on the
     // normal of the intersection.  But this should eventually
     // be replaced with code to do Phong illumination below
-    color = 0.5*(intersect.n + 1.0);
+    //color = 0.5*(intersect.n + 1.0);
 
+    intersect.n = normalize(intersect.n);
     
-    /*
 
     for (int i = 0; i < MAX_LIGHTS; i++) {
         if (i < numLights) {
+            float spotlight;
+            float shadow = softShadow(intersect,lights[i]);
+            vec3 normalizedTowards = normalize(lights[i].towards);
             d = lights[i].pos - intersect.p;
-            attenuation = lights[i].color / (lights[i].atten.x + lights[i].atten.y * d + lights[i].atten.z * dot(d,d));
+            float towardsAngle = dot(-normalize(d),normalizedTowards);
+            
+            
 
-            diffuse = m.kd * //N dot L;
-            specular = m.ks * //-v dot h;
+            
+            if (towardsAngle <= cos(lights[i].angle)) {
+                spotlight = 0.0;
+            } else {
+                spotlight = 1.0;
+            }
 
-            color = color + attenuation * (diffuse + specular);
+           
+            ci = lights[i].color / (lights[i].atten.x + lights[i].atten.y * length(d) + lights[i].atten.z * dot(d,d)); 
+            ci *= spotlight; 
+        
+            d = normalize(d);
+            float kdCoeff = dot(d,intersect.n);
+            if (kdCoeff >= 0.0) {
+                diffuse = m.kd * kdCoeff; //N dot L;
+            } else {
+                diffuse = vec3(0.0,0.0,0.0);
+            }
+
+            vec3 dh = normalize(eye - intersect.p);
+            vec3 h = -reflect(d, intersect.n);
+            float ksCoeff = dot(h,dh);
+            ksCoeff = pow(ksCoeff, m.shininess);
+            if (ksCoeff >= 0.0) {
+                specular = m.ks * ksCoeff;
+            } else {
+                specular = vec3(0.0,0.0,0.0);
+            }
+            
+            color += ci * shadow * (diffuse + specular);
         } else {
             break;
         }
-    } */
+    } 
     
 
 
@@ -542,9 +633,8 @@ Ray getRay() {
     
     if (orthographic == 1) {
 
-        //This ain't it, chief
         ray.p0 = eye + 10.0 * v_position.x * right + 10.0 * v_position.y * up;
-        ray.v = normalize(towards + v_position.x*tan(fovx/2.0)*right + v_position.y*tan(fovy/2.0)*up);
+        ray.v = normalize(towards);
     }
     else {
         ray.v = normalize(towards + v_position.x*tan(fovx/2.0)*right + v_position.y*tan(fovy/2.0)*up);
@@ -601,6 +691,11 @@ void main() {
                 insideObj = false;
             }
             color += weight*getPhongColor(intersect, m);
+            vec3 reflectedRay = reflect(ray.v,intersect.n);
+            weight*=m.ks;
+            ray.p0 = intersect.p + EPS * reflectedRay;
+            ray.v = reflectedRay;
+
             // TODO: Reflect ray, multiply weight by specular of this object,
             // and recursively continue
             // If doing extra task on transmission, only reflect if the
