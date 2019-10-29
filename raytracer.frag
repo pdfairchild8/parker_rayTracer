@@ -333,6 +333,7 @@ float rayIntersectBox(Ray ray, float W, float H, float L,
             t = t1;
             intersect.p = oldP0 + t1*oldV;
             intersect.n = normalize(N*intersect1.n);
+            intersect.sCoeff = cos(30.0*intersect1.p.y) * cos(30.0*intersect1.p.z);
         }
         
     }
@@ -342,6 +343,8 @@ float rayIntersectBox(Ray ray, float W, float H, float L,
             t = t2;
             intersect.p = oldP0 + t2*oldV;
             intersect.n = normalize(N*intersect2.n);
+            intersect.sCoeff = cos(30.0*intersect2.p.y) * cos(30.0*intersect2.p.z);
+
         }
     }
 
@@ -350,6 +353,7 @@ float rayIntersectBox(Ray ray, float W, float H, float L,
             t = t3;
             intersect.p = oldP0 + t3*oldV;
             intersect.n = normalize(N*intersect3.n);
+            intersect.sCoeff = cos(30.0*intersect3.p.x) * cos(30.0*intersect3.p.z);
         }
     }
 
@@ -358,6 +362,7 @@ float rayIntersectBox(Ray ray, float W, float H, float L,
             t = t4;
             intersect.p = oldP0 + t4*oldV;
             intersect.n = normalize(N*intersect4.n);
+            intersect.sCoeff = cos(30.0*intersect4.p.x) * cos(30.0*intersect4.p.z);
         }
     }
 
@@ -366,6 +371,7 @@ float rayIntersectBox(Ray ray, float W, float H, float L,
             t = t5;
             intersect.p = oldP0 + t5*oldV;
             intersect.n = normalize(N*intersect5.n);
+            intersect.sCoeff = cos(30.0*intersect5.p.x) * cos(30.0*intersect5.p.y);
         }
     }
 
@@ -374,11 +380,16 @@ float rayIntersectBox(Ray ray, float W, float H, float L,
             t = t6;
             intersect.p = oldP0 + t6*oldV;
             intersect.n = normalize(N*intersect6.n);
+            intersect.sCoeff = cos(30.0*intersect6.p.x) * cos(30.0*intersect6.p.y);
         }
     }
 
-
-    intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
+    if (intersect.sCoeff > 0.0) {
+        intersect.sCoeff = 1.0;
+    } else {
+        intersect.sCoeff = 0.0;
+    }
+    //intersect.sCoeff = 1.0; // TODO: Change this for special material extra task
     return t;
 
 }
@@ -593,6 +604,10 @@ vec3 getPhongColor(Intersection intersect, Material m) {
         
             d = normalize(d);
             float kdCoeff = dot(d,intersect.n);
+            if (m.special == 1) {
+                kdCoeff *= intersect.sCoeff;
+            }
+
             if (kdCoeff >= 0.0) {
                 diffuse = m.kd * kdCoeff; //N dot L;
             } else {
